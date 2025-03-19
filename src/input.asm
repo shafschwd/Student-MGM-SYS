@@ -6,13 +6,13 @@ section .data
     input_buffer_msg db "Input buffer cleared.", 10, 0
     
 section .text
-    global read_int, read_string, clear_input_buffer
+    global _read_int, _read_string, _clear_input_buffer
     extern _scanf, _printf, _getchar
     
 ; Function to read an integer
 ; Parameters: none
 ; Returns: eax = integer read
-read_int:
+_read_int:
     push rbp
     mov rbp, rsp
     sub rsp, 16         ; Allocate space for local variable
@@ -32,7 +32,7 @@ read_int:
 ; Parameters:
 ;   rdi = buffer address
 ;   rsi = buffer size
-read_string:
+_read_string:
     push rbp
     mov rbp, rsp
     push rdi            ; Save buffer address
@@ -43,7 +43,7 @@ read_string:
     xor eax, eax
     call _scanf
     
-    call clear_input_buffer
+    call _clear_input_buffer
     
     pop rsi
     pop rdi
@@ -51,7 +51,7 @@ read_string:
     ret
     
 ; Function to clear input buffer
-clear_input_buffer:
+_clear_input_buffer:
     push rbp
     mov rbp, rsp
     
