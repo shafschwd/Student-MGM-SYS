@@ -15,10 +15,10 @@ section .text
     extern _printf, _scanf
     
     ; External functions from other files
-    extern read_string, read_int
-    extern display_student, display_all_students
-    extern calculate_gpa
-    extern add_student, search_student
+    extern _read_string, _read_int
+    extern _display_student, _display_all_students
+    extern _calculate_gpa
+    extern _add_student, _search_student
     
 _main:
     push rbp
@@ -38,7 +38,7 @@ main_loop:
     ; Read user choice
     lea rdi, [rel choice]
     mov rsi, 2
-    call read_string
+    call _read_string
     
     ; Convert choice to integer
     movzx eax, byte [choice]
@@ -67,19 +67,19 @@ main_loop:
     jmp main_loop
     
 .add_student_section:
-    call add_student
+    call _add_student
     jmp main_loop
     
 .view_students_section:
-    call display_all_students
+    call _display_all_students
     jmp main_loop
     
 .calculate_gpa_section:
-    call calculate_gpa
+    call _calculate_gpa
     jmp main_loop
     
 .search_section:
-    call search_student
+    call _search_student
     jmp main_loop
     
 .exit_section:
