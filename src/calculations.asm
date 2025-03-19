@@ -5,11 +5,11 @@ section .data
     calc_success_msg db "GPA calculated successfully!", 10, 0
     
 section .text
-    global calculate_gpa
-    extern read_int, _printf, search_student
+    global _calculate_gpa
+    extern _read_int, _printf, _search_student
     
 ; Function to calculate GPA for a student
-calculate_gpa:
+_calculate_gpa:
     push rbp
     mov rbp, rsp
     
@@ -19,7 +19,7 @@ calculate_gpa:
     call _printf
     
     ; Search for student
-    call search_student
+    call _search_student
     test rax, rax
     jz .done      ; Student not found
     
