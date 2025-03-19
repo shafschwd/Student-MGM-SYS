@@ -16,7 +16,8 @@ section .text
     extern _add_student
     extern _view_students  ; Add this external reference
     extern _calculate_gpa     ; Add this external reference
-    
+    extern _search_student     ; Add this external reference
+
 _main:
     push rbp
     mov rbp, rsp
@@ -73,7 +74,7 @@ menu_calculate_gpa:
     jmp main_loop
     
 menu_search_student:
-    ; Call search_student function when implemented
+    call _search_student    ; Call our search_student function
     jmp main_loop
     
 menu_exit:
