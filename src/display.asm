@@ -7,13 +7,13 @@ section .data
     no_students_msg db "No students in the database.", 10, 0
     
 section .text
-    global display_student, display_all_students
-    extern _printf, get_student_count, get_student_record
+    global _display_student, _display_all_students
+    extern _printf, _get_student_count, _get_student_record
     
 ; Function to display a single student
 ; Parameters:
 ;   rdi = pointer to student record
-display_student:
+_display_student:
     push rbp
     mov rbp, rsp
     
@@ -36,12 +36,12 @@ display_student:
     ret
     
 ; Function to display all students
-display_all_students:
+_display_all_students:
     push rbp
     mov rbp, rsp
     
     ; Get student count
-    call get_student_count
+    call _get_student_count
     test eax, eax
     jz .no_students
     
@@ -58,11 +58,11 @@ display_all_students:
     
     ; Get student record
     mov rdi, rbx
-    call get_student_record
+    call _get_student_record
     
     ; Display it
     mov rdi, rax
-    call display_student
+    call _display_student
     
     inc rbx
     jmp .display_loop
