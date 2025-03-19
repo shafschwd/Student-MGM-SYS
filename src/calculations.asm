@@ -1,59 +1,55 @@
-; calculations.asm - Grade calculation logic
-
+; calculations.asm - GPA calculations
 section .data
-    prompt_calc_id db "Enter student ID to calculate GPA: ", 0
-    calc_success_msg db "GPA calculated successfully!", 10, 0
+    ; Messages
+    gpa_header db "===== GPA Calculation =====", 10, 0
+    no_students_msg db "No students in the database.", 10, 0
+    gpa_result_msg db "Student ID: %d, Name: %s", 10, "Grade: %d, GPA: %.2f", 10, 0
     
 section .text
     global _calculate_gpa
-    extern _read_int, _printf, _search_student
+    extern _printf
+    extern student_count, student_id, student_name, student_grade
     
-; Function to calculate GPA for a student
+; Calculate GPA (simplified version)
 _calculate_gpa:
     push rbp
     mov rbp, rsp
     
-    ; Get student ID
-    lea rdi, [rel prompt_calc_id]
-    xor eax, eax
+    ; Display header
+    lea rdi, [rel gpa_header]
     call _printf
     
-    ; Search for student
-    call _search_student
-    test rax, rax
-    jz .done      ; Student not found
+    ; Check if there are any students
+    mov eax, [rel student_count]
+    cmp eax, 0
+    je .no_students
     
-    ; Found the student, calculate GPA
-    mov rbx, rax  ; Store student record pointer
+    ; Simple GPA calculation (grade / 20) just for demonstration
+    ; In a real system, you'd have a more complex formula based on multiple grades
+    mov eax, [rel student_grade]
+    cvtsi2ss xmm0, eax    ; Convert to float
+    movss xmm1, [rel divisor]
+    divss xmm0, xmm1      ; Divide by 20 to get a GPA between 0-5
     
-    ; Calculate sum of grades
-    xor rcx, rcx
-    xorps xmm0, xmm0      ; Clear accumulator
-.sum_loop:
-    cmp rcx, 5            ; 5 subjects
-    jge .calc_average
+    ; Display the student info with GPA
+    lea rdi, [rel gpa_result_msg]
+    mov esi, [rel student_id]
+    lea rdx, [rel student_name]
+    mov ecx, [rel student_grade]
+    ; xmm0 already contains our GPA
+    cvtss2sd xmm0, xmm0   ; Convert to double for printf
+    mov al, 1             ; 1 floating point argument
+    call _printf
     
-    ; Add current grade to sum
-    movss xmm1, [rbx + 54 + rcx*4]
-    addss xmm0, xmm1
+    jmp .done
     
-    inc rcx
-    jmp .sum_loop
-    
-.calc_average:
-    ; Divide by number of subjects
-    mov ecx, 5
-    cvtsi2ss xmm1, ecx
-    divss xmm0, xmm1
-    
-    ; Store result in student record
-    movss [rbx + 74], xmm0
-    
-    ; Display success message
-    lea rdi, [rel calc_success_msg]
-    xor eax, eax
+.no_students:
+    lea rdi, [rel no_students_msg]
     call _printf
     
 .done:
     pop rbp
     ret
+
+section .data
+    divisor dd 20.0       ; Divisor for GPA calculation

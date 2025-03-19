@@ -15,6 +15,7 @@ section .text
     extern _printf, _scanf, _getchar
     extern _add_student
     extern _view_students  ; Add this external reference
+    extern _calculate_gpa     ; Add this external reference
     
 _main:
     push rbp
@@ -68,7 +69,7 @@ menu_view_students:
     jmp main_loop
     
 menu_calculate_gpa:
-    ; Call calculate_gpa function when implemented
+    call _calculate_gpa    ; Call our calculate_gpa function
     jmp main_loop
     
 menu_search_student:
