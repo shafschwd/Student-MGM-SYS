@@ -1,77 +1,47 @@
-; display.asm - Output routines
-
+; display.asm - Display student information
 section .data
     ; Display formats
-    header_fmt db "ID    Name                                  GPA", 10, "------------------------------------------------", 10, 0
-    student_fmt db "%4d  %-40s  %.2f", 10, 0
+    header_msg db "===== Student List =====", 10, 0
     no_students_msg db "No students in the database.", 10, 0
+    student_info_fmt db "ID: %d, Name: %s, Grade: %d", 10, 0
+    footer_msg db "=====================", 10, 0
     
 section .text
-    global _display_student, _display_all_students
-    extern _printf, _get_student_count, _get_student_record
+    global _view_students
+    extern _printf
+    extern student_count, student_id, student_name, student_grade
     
-; Function to display a single student
-; Parameters:
-;   rdi = pointer to student record
-_display_student:
+; Display all students (currently just the latest one)
+_view_students:
     push rbp
     mov rbp, rsp
-    
-    ; Preserve student record pointer
-    push rdi
-    
-    ; Display student info
-    ; Format: ID, Name, GPA
-    lea rdi, [rel student_fmt]
-    mov rsi, [rbp-8]     ; ID (first 4 bytes of record)
-    mov edx, [rsi]
-    lea rcx, [rsi+4]     ; Name (offset 4)
-    movss xmm0, [rsi+74] ; GPA (offset 74)
-    cvtss2sd xmm0, xmm0  ; Convert to double for printf
-    mov rax, 1           ; 1 floating point argument
-    call _printf
-    
-    pop rdi
-    pop rbp
-    ret
-    
-; Function to display all students
-_display_all_students:
-    push rbp
-    mov rbp, rsp
-    
-    ; Get student count
-    call _get_student_count
-    test eax, eax
-    jz .no_students
     
     ; Display header
-    lea rdi, [rel header_fmt]
-    xor eax, eax
+    lea rdi, [rel header_msg]
     call _printf
     
-    ; Loop through all students
-    mov rbx, 0      ; Counter
-.display_loop:
-    cmp ebx, eax
-    jge .done
+    ; Check if there are any students
+    mov eax, [rel student_count]
+    cmp eax, 0
+    je .no_students
     
-    ; Get student record
-    mov rdi, rbx
-    call _get_student_record
+    ; Display the student info
+    lea rdi, [rel student_info_fmt]
+    mov esi, [rel student_id]
+    lea rdx, [rel student_name]
+    mov ecx, [rel student_grade]
+    call _printf
     
-    ; Display it
-    mov rdi, rax
-    call _display_student
-    
-    inc rbx
-    jmp .display_loop
+    jmp .done
     
 .no_students:
     lea rdi, [rel no_students_msg]
-    xor eax, eax
     call _printf
     
 .done:
+    ; Display footer
+    lea rdi, [rel footer_msg]
+    call _printf
+    
     pop rbp
     ret

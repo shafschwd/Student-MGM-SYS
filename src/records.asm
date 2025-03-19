@@ -12,10 +12,12 @@ section .data
     fmt_print db "Added student - ID: %d, Name: %s, Grade: %d", 10, 0
     
     ; Counter
+    global student_count
     student_count dd 0
     
 section .bss
     ; We'll use individual variables for now instead of an array
+    global student_id, student_name, student_grade
     student_id resd 1
     student_name resb 50
     student_grade resd 1

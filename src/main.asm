@@ -11,14 +11,10 @@ section .bss
     
 section .text
     global _main
-    extern _printf, _scanf, _getchar
-    extern _add_student   ; Add this external reference
-
-    section .text
-    global _main
-    global _flush_input    ; Add this line to export the function
+    global _flush_input    ; Export flush_input
     extern _printf, _scanf, _getchar
     extern _add_student
+    extern _view_students  ; Add this external reference
     
 _main:
     push rbp
@@ -64,11 +60,11 @@ main_loop:
     jmp main_loop
     
 menu_add_student:
-    call _add_student    ; Call our add_student function
+    call _add_student
     jmp main_loop
     
 menu_view_students:
-    ; Call view_students function when implemented
+    call _view_students    ; Call our new view_students function
     jmp main_loop
     
 menu_calculate_gpa:
