@@ -13,6 +13,12 @@ section .text
     global _main
     extern _printf, _scanf, _getchar
     extern _add_student   ; Add this external reference
+
+    section .text
+    global _main
+    global _flush_input    ; Add this line to export the function
+    extern _printf, _scanf, _getchar
+    extern _add_student
     
 _main:
     push rbp
