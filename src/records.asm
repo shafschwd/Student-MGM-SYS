@@ -1,8 +1,5 @@
-; records.asm - Student record management
+; records.asm - Simplified student record management
 section .data
-    max_students equ 50
-    record_size equ 100
-    
     ; Prompts
     prompt_id db "Enter student ID: ", 0
     prompt_name db "Enter student name: ", 0
@@ -12,22 +9,22 @@ section .data
     ; Formats
     fmt_int db "%d", 0
     fmt_str db "%s", 0
-    fmt_print db "ID: %d, Name: %s", 10, 0
+    fmt_print db "Added student - ID: %d, Name: %s, Grade: %d", 10, 0
+    
+    ; Counter
+    student_count dd 0
     
 section .bss
-    student_records resb max_students * record_size
-    student_count resd 1
-    
-    ; Temp variables
-    temp_id resd 1
-    temp_name resb 50
-    temp_grades resd 5
+    ; We'll use individual variables for now instead of an array
+    student_id resd 1
+    student_name resb 50
+    student_grade resd 1
     
 section .text
     global _add_student
-    extern _printf, _scanf, _getchar, _flush_input
+    extern _printf, _scanf, _flush_input
     
-; Add student record
+; Add student record - simplified version
 _add_student:
     push rbp
     mov rbp, rsp
@@ -37,7 +34,7 @@ _add_student:
     call _printf
     
     lea rdi, [rel fmt_int]
-    lea rsi, [rel temp_id]
+    lea rsi, [rel student_id]
     call _scanf
     
     call _flush_input
@@ -47,50 +44,33 @@ _add_student:
     call _printf
     
     lea rdi, [rel fmt_str]
-    lea rsi, [rel temp_name]
+    lea rsi, [rel student_name]
     call _scanf
     
     call _flush_input
     
-    ; Get grades (simplified to just one grade for testing)
+    ; Get grade (simplified to just one grade)
     lea rdi, [rel prompt_grade]
     mov rsi, 1
     call _printf
     
     lea rdi, [rel fmt_int]
-    lea rsi, [rel temp_grades]
+    lea rsi, [rel student_grade]
     call _scanf
     
     call _flush_input
     
-    ; Calculate record position
-    mov eax, [rel student_count]
-    mov ebx, record_size
-    mul ebx
-    
-    ; Store ID
-    mov ebx, [rel temp_id]
-    mov [rel student_records + eax], ebx
-    
-    ; Store name (simplified, just copying the pointer for now)
-    lea rbx, [rel temp_name]
-    mov qword [rel student_records + eax + 4], rbx
-    
-    ; Store grade
-    mov ebx, [rel temp_grades]
-    mov [rel student_records + eax + 54], ebx
-    
     ; Increment student count
     inc dword [rel student_count]
     
-    ; Display success message
+    ; Display success message and student info
     lea rdi, [rel success_msg]
     call _printf
     
-    ; Optionally display the added student info
     lea rdi, [rel fmt_print]
-    mov esi, [rel temp_id]
-    lea rdx, [rel temp_name]
+    mov esi, [rel student_id]
+    lea rdx, [rel student_name]
+    mov ecx, [rel student_grade]
     call _printf
     
     pop rbp
