@@ -12,6 +12,7 @@ section .bss
 section .text
     global _main
     extern _printf, _scanf, _getchar
+    extern _add_student   ; Add this external reference
     
 _main:
     push rbp
@@ -57,7 +58,7 @@ main_loop:
     jmp main_loop
     
 menu_add_student:
-    ; Call add_student function when implemented
+    call _add_student    ; Call our add_student function
     jmp main_loop
     
 menu_view_students:
