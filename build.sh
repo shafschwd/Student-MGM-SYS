@@ -2,14 +2,15 @@
 
 #remove old build
 rm -f obj/*.o
+rm -f student_system
 
 
 # Build student system
-nasm -f macho64 src/main.asm -o main.o
-nasm -f macho64 src/records.asm -o records.o
-nasm -f macho64 src/display.asm -o display.o
-nasm -f macho64 src/calculations.asm -o calculations.o
-nasm -f macho64 src/search.asm -o search.o
+nasm -f macho64 src/main.asm -o obj/main.o
+nasm -f macho64 src/records.asm -o obj/records.o
+nasm -f macho64 src/display.asm -o obj/display.o
+nasm -f macho64 src/calculations.asm -o obj/calculations.o
+nasm -f macho64 src/search.asm -o obj/search.o
 
 if [ $? -ne 0 ]; then
     echo "Assembly failed. Please check errors above."
@@ -23,4 +24,4 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo "Build complete. Run with ./student_system
+echo "Build complete. Run with ./student_system"

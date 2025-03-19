@@ -1,6 +1,3 @@
 src/.DS_Store
-main.o
-records.o
-display.o
-input.o
+obj/*.o
 student_system
