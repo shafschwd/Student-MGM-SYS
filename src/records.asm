@@ -1,4 +1,4 @@
-; records.asm - Super simplified for macOS
+; records_minimal.asm - Extremely minimal student record management for macOS
 section .data
     ; Constants
     MAX_STUDENTS equ 10
@@ -15,24 +15,23 @@ section .data
     fmt_str db "%s", 0
     fmt_print db "Added student - ID: %d, Name: %s, Grade: %d", 10, 0
     
-    ; Counter
-    student_count dd 0
+    ; Student data (global variables)
+    global _student_count
+    _student_count: dd 0
     
 section .bss
-    ; Arrays for student data
-    student_ids resd MAX_STUDENTS      ; Array of IDs (4 bytes each)
-    student_names resb MAX_STUDENTS * 50  ; Array of names (50 bytes each)
-    student_grades resd MAX_STUDENTS   ; Array of grades (4 bytes each)
+    global _student_ids, _student_names, _student_grades
+    _student_ids: resd MAX_STUDENTS
+    _student_names: resb MAX_STUDENTS * 50
+    _student_grades: resd MAX_STUDENTS
     
-    ; Temp variables
-    temp_id resd 1
-    temp_name resb 50
-    temp_grade resd 1
+    ; Temporary variables
+    temp_id: resd 1
+    temp_name: resb 50
+    temp_grade: resd 1
     
 section .text
     global _add_student
-    global _get_student_count
-    global _get_student_record
     extern _printf, _scanf, _flush_input
     
 ; Add student record
@@ -41,7 +40,7 @@ _add_student:
     mov rbp, rsp
     
     ; Check if we've reached maximum students
-    mov eax, [rel student_count]
+    mov eax, [rel _student_count]
     cmp eax, MAX_STUDENTS
     jl .continue
     
@@ -89,51 +88,62 @@ _add_student:
     
     call _flush_input
     
-    ; Get current index
-    mov r8d, [rel student_count]
+    ; Get current student index
+    mov r12d, [rel _student_count]
     
-    ; Store ID (simple way)
-    lea r10, [rel student_ids]
-    mov eax, [rel temp_id]
-    mov [r10 + r8*4], eax
+    ; Store the ID
+    mov rax, r12                ; Current index 
+    mov rbx, 4                  ; Size of ID
+    mul rbx                     ; rax = index * 4
+    lea rdi, [rel _student_ids] ; Base address
+    add rdi, rax                ; Address to store ID
+    mov eax, [rel temp_id]      ; Load ID value
+    mov [rdi], eax              ; Store ID 
     
-    ; Store name (careful with string)
-    lea r10, [rel student_names]  ; Base address
-    mov r9, r8                   ; Copy index
-    imul r9, 50                  ; r9 = index * 50
-    add r10, r9                  ; Address = base + (index * 50)
+    ; Store the grade similarly
+    mov rax, r12                ; Current index 
+    mov rbx, 4                  ; Size of grade
+    mul rbx                     ; rax = index * 4
+    lea rdi, [rel _student_grades] ; Base address
+    add rdi, rax                ; Address to store grade
+    mov eax, [rel temp_grade]   ; Load grade value
+    mov [rdi], eax              ; Store grade
     
-    ; Copy name (char by char)
-    mov rcx, 0
-.copy_loop:
-    cmp rcx, 49                  ; Max length - 1
-    jge .end_copy
+    ; Store the name (byte by byte)
+    mov rax, r12                ; Current index
+    mov rbx, 50                 ; Size of name
+    mul rbx                     ; rax = index * 50
+    lea rdi, [rel _student_names] ; Base address
+    add rdi, rax                ; Target address
+    lea rsi, [rel temp_name]    ; Source address
     
-    mov al, byte [rel temp_name + rcx]
-    mov byte [r10 + rcx], al
+    ; Copy the name characters one by one
+    mov rcx, 0                  ; Counter
+.name_loop:
+    cmp rcx, 49                 ; Max length - 1
+    jge .end_name
     
-    test al, al                  ; Check for null terminator
-    jz .end_copy
+    mov al, [rsi + rcx]         ; Get character
+    mov [rdi + rcx], al         ; Store character
+    
+    test al, al                 ; Check for null
+    jz .end_name
     
     inc rcx
-    jmp .copy_loop
+    jmp .name_loop
     
-.end_copy:
-    mov byte [r10 + rcx], 0      ; Ensure null termination
+.end_name:
+    mov byte [rdi + rcx], 0     ; Ensure null termination
     
-    ; Store grade (simple way)
-    lea r10, [rel student_grades]
-    mov eax, [rel temp_grade]
-    mov [r10 + r8*4], eax
-    
-    ; Increment count
-    inc dword [rel student_count]
+    ; Increment student count
+    inc dword [rel _student_count]
     
     ; Display success
     lea rdi, [rel success_msg]
     xor eax, eax
     call _printf
     
+    ; Display added student info
     lea rdi, [rel fmt_print]
     mov esi, [rel temp_id]
     lea rdx, [rel temp_name]
@@ -145,70 +155,71 @@ _add_student:
     pop rbp
     ret
 
-; Get student count
+; Get student count - needed by other files
+global _get_student_count
 _get_student_count:
-    mov eax, [rel student_count]
+    mov eax, [rel _student_count]
     ret
 
-; Get student by index - simplified to return ID, then call other functions
-_get_student_record:
-    ; Check if index is valid
-    cmp edi, [rel student_count]
-    jge .invalid
-    
-    mov eax, edi    ; Just return the index for now
-    ret
-    
-.invalid:
-    mov eax, -1
-    ret
-
-; These are added functions to work with our simplified structure
-global _get_student_id, _get_student_name, _get_student_grade
-
-; Get ID for student at index
+; Get student ID at index
+global _get_student_id
 _get_student_id:
     ; Check if index is valid
-    cmp edi, [rel student_count]
+    cmp edi, [rel _student_count]
     jge .invalid
     
     ; Calculate address
-    lea r10, [rel student_ids]
-    mov eax, [r10 + rdi*4]
+    mov eax, edi                ; Index
+    mov ecx, 4                  ; Size of ID
+    mul ecx                     ; eax = index * 4
+    lea rcx, [rel _student_ids] ; Base address
+    mov eax, [rcx + rax]        ; Get ID
     ret
     
 .invalid:
     mov eax, -1
     ret
 
-; Get pointer to name for student at index
+; Get student name at index
+global _get_student_name
 _get_student_name:
     ; Check if index is valid
-    cmp edi, [rel student_count]
+    cmp edi, [rel _student_count]
     jge .invalid
     
-    ; Calculate name address
-    lea r10, [rel student_names]
-    mov rax, rdi
-    imul rax, 50
-    add rax, r10
+    ; Calculate address
+    mov eax, edi                 ; Index
+    mov ecx, 50                  ; Size of name
+    mul ecx                      ; eax = index * 50
+    lea rcx, [rel _student_names] ; Base address
+    lea rax, [rcx + rax]         ; Get name address
     ret
     
 .invalid:
     xor eax, eax
     ret
 
-; Get grade for student at index
+; Get student grade at index
+global _get_student_grade
 _get_student_grade:
     ; Check if index is valid
-    cmp edi, [rel student_count]
+    cmp edi, [rel _student_count]
     jge .invalid
     
     ; Calculate address
-    lea r10, [rel student_grades]
-    mov eax, [r10 + rdi*4]
+    mov eax, edi                  ; Index
+    mov ecx, 4                    ; Size of grade
+    mul ecx                       ; eax = index * 4
+    lea rcx, [rel _student_grades] ; Base address
+    mov eax, [rcx + rax]           ; Get grade
     ret
     
 .invalid:
     mov eax, -1
+    ret
+
+; This function exists for compatibility but just returns index
+global _get_student_record
+_get_student_record:
+    mov eax, edi
     ret
