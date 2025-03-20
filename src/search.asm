@@ -8,27 +8,27 @@ section .data
     no_students_msg db "No students in the database.", 10, 0
     fmt_int db "%d", 0
     
-    ; Constants
-    ID_OFFSET equ 0                  ; Offset of ID field in record
-    NAME_OFFSET equ 4                ; Offset of name field in record
-    GRADE_OFFSET equ 54              ; Offset of grade field in record
-    
 section .bss
     search_id resd 1       ; Buffer for search ID
     
 section .text
     global _search_student
     extern _printf, _scanf, _flush_input
-    extern _get_student_count, _get_student_record
+    extern _get_student_count, _get_student_id, _get_student_name, _get_student_grade
     
 ; Search for a student by ID
 _search_student:
     push rbp
     mov rbp, rsp
-    push rbx                    ; Save rbx as we'll use it
+    push rbx                    ; Save non-volatile registers
+    push r12
+    push r13
+    push r14
+    push r15
     
     ; Display header
     lea rdi, [rel search_header]
+    xor eax, eax
     call _printf
     
     ; Check if there are any students
@@ -41,40 +41,50 @@ _search_student:
     
     ; Prompt for ID to search
     lea rdi, [rel search_prompt]
+    xor eax, eax
     call _printf
     
     ; Read ID
     lea rdi, [rel fmt_int]
     lea rsi, [rel search_id]
+    xor eax, eax
     call _scanf
     
     call _flush_input
     
     ; Search through all students
-    mov r12d, 0                 ; Initialize counter
+    xor r12d, r12d               ; Initialize counter
 .search_loop:
-    cmp r12d, ebx               ; Check if we've searched all students
+    cmp r12d, ebx                ; Check if we've searched all students
     jge .not_found
     
-    ; Get student record
+    ; Get current student ID
     mov edi, r12d
-    call _get_student_record
-    mov r13, rax                ; r13 = pointer to student record
+    call _get_student_id
     
-    ; Compare IDs
-    mov eax, [rel search_id]
-    cmp eax, [r13 + ID_OFFSET]
+    ; Compare with search ID
+    cmp eax, [rel search_id]
     je .found
     
-    inc r12d                    ; Increment counter
+    inc r12d                     ; Increment counter
     jmp .search_loop
     
 .found:
+    ; Get student name and grade
+    mov edi, r12d
+    call _get_student_name
+    mov r14, rax                ; r14 = pointer to student name
+    
+    mov edi, r12d
+    call _get_student_grade
+    mov r15d, eax               ; r15d = student grade
+    
     ; Display student info
     lea rdi, [rel student_found_fmt]
-    mov esi, [r13 + ID_OFFSET]      ; Load ID
-    lea rdx, [r13 + NAME_OFFSET]    ; Load name pointer
-    mov ecx, [r13 + GRADE_OFFSET]   ; Load grade
+    mov esi, [rel search_id]    ; ID
+    mov rdx, r14                ; Name pointer
+    mov ecx, r15d               ; Grade
+    xor eax, eax
     call _printf
     jmp .done
     
@@ -82,14 +92,22 @@ _search_student:
     ; Not found
     lea rdi, [rel student_not_found]
     mov esi, [rel search_id]
+    xor eax, eax
     call _printf
     jmp .done
     
 .no_students:
     lea rdi, [rel no_students_msg]
+    xor eax, eax
     call _printf
     
 .done:
-    pop rbx                     ; Restore rbx
+    ; Restore registers
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    
     pop rbp
     ret

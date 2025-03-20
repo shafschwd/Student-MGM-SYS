@@ -14,26 +14,25 @@ section .text
     global _flush_input
     extern _printf, _scanf, _getchar
     extern _add_student, _view_students, _calculate_gpa, _search_student
-    extern _load_records, _save_records  ; Add these external references
-
+    
 _main:
     push rbp
     mov rbp, rsp
     
-    ; Load student records from file at startup
-    call _load_records
-    
 main_loop:
     ; Display title and menu
     lea rdi, [rel title_msg]
+    xor eax, eax
     call _printf
     
     lea rdi, [rel menu_msg]
+    xor eax, eax
     call _printf
     
     ; Read choice
     lea rdi, [rel fmt_int]
     lea rsi, [rel choice]
+    xor eax, eax
     call _scanf
     
     ; Clear input buffer
@@ -59,6 +58,7 @@ main_loop:
     
     ; Invalid choice
     lea rdi, [rel invalid_msg]
+    xor eax, eax
     call _printf
     jmp main_loop
     
@@ -79,10 +79,8 @@ menu_search_student:
     jmp main_loop
     
 menu_exit:
-    ; Save records before exiting (optional, since we save after each add)
-    call _save_records
-    
     lea rdi, [rel exit_msg]
+    xor eax, eax
     call _printf
     
     mov rax, 0

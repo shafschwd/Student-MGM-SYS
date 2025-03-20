@@ -1,12 +1,7 @@
-; records.asm - Multiple student record management with file persistence
+; records.asm - Super simplified for macOS
 section .data
     ; Constants
-    MAX_STUDENTS equ 10              ; Maximum number of students
-    RECORD_SIZE equ 60               ; Size of each student record
-    ID_OFFSET equ 0                  ; Offset of ID field in record
-    NAME_OFFSET equ 4                ; Offset of name field in record
-    NAME_SIZE equ 50                 ; Maximum name length
-    GRADE_OFFSET equ 54              ; Offset of grade field in record
+    MAX_STUDENTS equ 10
     
     ; Prompts
     prompt_id db "Enter student ID: ", 0
@@ -20,38 +15,25 @@ section .data
     fmt_str db "%s", 0
     fmt_print db "Added student - ID: %d, Name: %s, Grade: %d", 10, 0
     
-    ; File operations
-    file_path db "../student_records.txt", 0  ; File to store student data
-    file_mode_w db "w", 0                 ; Write mode
-    file_mode_r db "r", 0                 ; Read mode
-    file_write_fmt db "%d,%s,%d", 10, 0   ; Format for writing to file
-    file_read_fmt db "%d,%[^,],%d", 0     ; Format for reading from file
-    file_save_msg db "Student records saved to file.", 10, 0
-    file_load_msg db "Student records loaded from file.", 10, 0
-    
     ; Counter
-    global student_count
     student_count dd 0
     
 section .bss
-    ; Student records array
-    global student_records
-    student_records resb MAX_STUDENTS * RECORD_SIZE
+    ; Arrays for student data
+    student_ids resd MAX_STUDENTS      ; Array of IDs (4 bytes each)
+    student_names resb MAX_STUDENTS * 50  ; Array of names (50 bytes each)
+    student_grades resd MAX_STUDENTS   ; Array of grades (4 bytes each)
     
-    ; Temp variables for input
+    ; Temp variables
     temp_id resd 1
-    temp_name resb NAME_SIZE
+    temp_name resb 50
     temp_grade resd 1
     
 section .text
     global _add_student
-    global _get_student_record
     global _get_student_count
-    global _get_max_students
-    global _save_records
-    global _load_records
-    extern _printf, _scanf, _flush_input, _strcmp
-    extern _fopen, _fclose, _fprintf, _fscanf, _feof
+    global _get_student_record
+    extern _printf, _scanf, _flush_input
     
 ; Add student record
 _add_student:
@@ -65,26 +47,31 @@ _add_student:
     
     ; Maximum reached
     lea rdi, [rel max_students_msg]
+    xor eax, eax
     call _printf
     jmp .done
     
 .continue:
     ; Get student ID
     lea rdi, [rel prompt_id]
+    xor eax, eax
     call _printf
     
     lea rdi, [rel fmt_int]
     lea rsi, [rel temp_id]
+    xor eax, eax
     call _scanf
     
     call _flush_input
     
     ; Get student name
     lea rdi, [rel prompt_name]
+    xor eax, eax
     call _printf
     
     lea rdi, [rel fmt_str]
     lea rsi, [rel temp_name]
+    xor eax, eax
     call _scanf
     
     call _flush_input
@@ -92,221 +79,136 @@ _add_student:
     ; Get grade
     lea rdi, [rel prompt_grade]
     mov rsi, 1
+    xor eax, eax
     call _printf
     
     lea rdi, [rel fmt_int]
     lea rsi, [rel temp_grade]
+    xor eax, eax
     call _scanf
     
     call _flush_input
     
-    ; Calculate record address
-    mov eax, [rel student_count]    ; Get current number of students
-    mov r9d, RECORD_SIZE            ; Size of each record
-    mul r9d                         ; eax = student_count * RECORD_SIZE
-    lea rdi, [rel student_records]  ; Base address of student records
-    add rdi, rax                    ; rdi = address of new record
+    ; Get current index
+    mov r8d, [rel student_count]
     
-    ; Store ID
+    ; Store ID (simple way)
+    lea r10, [rel student_ids]
     mov eax, [rel temp_id]
-    mov [rdi + ID_OFFSET], eax
+    mov [r10 + r8*4], eax
     
-    ; Store name
-    mov rcx, 0                      ; Initialize counter
-.copy_name:
-    cmp rcx, NAME_SIZE-1            ; Check if we've reached max name length
-    jge .name_done
+    ; Store name (careful with string)
+    lea r10, [rel student_names]  ; Base address
+    mov r9, r8                   ; Copy index
+    imul r9, 50                  ; r9 = index * 50
+    add r10, r9                  ; Address = base + (index * 50)
     
-    mov al, [rel temp_name + rcx]   ; Get character from temp_name
-    mov [rdi + NAME_OFFSET + rcx], al ; Store in record
+    ; Copy name (char by char)
+    mov rcx, 0
+.copy_loop:
+    cmp rcx, 49                  ; Max length - 1
+    jge .end_copy
     
-    test al, al                     ; Check if null terminator
-    jz .name_done
+    mov al, byte [rel temp_name + rcx]
+    mov byte [r10 + rcx], al
+    
+    test al, al                  ; Check for null terminator
+    jz .end_copy
     
     inc rcx
-    jmp .copy_name
+    jmp .copy_loop
     
-.name_done:
-    ; Ensure null termination
-    mov byte [rdi + NAME_OFFSET + rcx], 0
+.end_copy:
+    mov byte [r10 + rcx], 0      ; Ensure null termination
     
-    ; Store grade
+    ; Store grade (simple way)
+    lea r10, [rel student_grades]
     mov eax, [rel temp_grade]
-    mov [rdi + GRADE_OFFSET], eax
+    mov [r10 + r8*4], eax
     
-    ; Increment student count
+    ; Increment count
     inc dword [rel student_count]
     
-    ; Display success message and student info
+    ; Display success
     lea rdi, [rel success_msg]
+    xor eax, eax
     call _printf
     
     lea rdi, [rel fmt_print]
     mov esi, [rel temp_id]
     lea rdx, [rel temp_name]
     mov ecx, [rel temp_grade]
-    call _printf
-    
-    ; Save records to file after adding
-    call _save_records
-    
-.done:
-    pop rbp
-    ret
-
-; Save student records to file
-_save_records:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 16                    ; Allocate space for local variables
-    
-    ; Open file for writing
-    lea rdi, [rel file_path]
-    lea rsi, [rel file_mode_w]
-    call _fopen
-    
-    ; Check if file opened successfully
-    test rax, rax
-    jz .done                       ; Exit if file couldn't be opened
-    
-    ; Store file pointer
-    mov [rsp], rax
-    
-    ; Loop through all students and write to file
-    mov ebx, 0                     ; Initialize counter
-.write_loop:
-    cmp ebx, [rel student_count]   ; Check if we've processed all students
-    jge .close_file
-    
-    ; Get student record
-    mov eax, ebx
-    mov r9d, RECORD_SIZE
-    mul r9d                        ; eax = index * RECORD_SIZE
-    lea r10, [rel student_records] ; Base address of student records
-    add r10, rax                   ; r10 = address of current record
-    
-    ; Write record to file
-    mov rdi, [rsp]                 ; File pointer
-    lea rsi, [rel file_write_fmt]
-    mov edx, [r10 + ID_OFFSET]     ; ID
-    lea rcx, [r10 + NAME_OFFSET]   ; Name
-    mov r8d, [r10 + GRADE_OFFSET]  ; Grade
-    call _fprintf
-    
-    inc ebx                        ; Increment counter
-    jmp .write_loop
-    
-.close_file:
-    ; Close file
-    mov rdi, [rsp]
-    call _fclose
-    
-    ; Display success message
-    lea rdi, [rel file_save_msg]
+    xor eax, eax
     call _printf
     
 .done:
-    add rsp, 16                    ; Clean up stack
     pop rbp
-    ret
-
-; Load student records from file
-_load_records:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 32                    ; Allocate space for local variables
-    
-    ; Reset student count
-    mov dword [rel student_count], 0
-    
-    ; Open file for reading
-    lea rdi, [rel file_path]
-    lea rsi, [rel file_mode_r]
-    call _fopen
-    
-    ; Check if file opened successfully
-    test rax, rax
-    jz .done                       ; Exit if file couldn't be opened
-    
-    ; Store file pointer
-    mov [rsp], rax
-    
-.read_loop:
-    ; Check if we've reached EOF
-    mov rdi, [rsp]
-    call _feof
-    test eax, eax
-    jnz .close_file
-    
-    ; Check if we've reached maximum students
-    mov eax, [rel student_count]
-    cmp eax, MAX_STUDENTS
-    jge .close_file
-    
-    ; Calculate record address
-    mov eax, [rel student_count]
-    mov r9d, RECORD_SIZE
-    mul r9d                        ; eax = student_count * RECORD_SIZE
-    lea r10, [rel student_records] ; Base address of student records
-    add r10, rax                   ; r10 = address of current record
-    
-    ; Read record from file
-    mov rdi, [rsp]                 ; File pointer
-    lea rsi, [rel file_read_fmt]
-    lea rdx, [r10 + ID_OFFSET]     ; ID
-    lea rcx, [r10 + NAME_OFFSET]   ; Name
-    lea r8, [r10 + GRADE_OFFSET]   ; Grade
-    call _fscanf
-    
-    ; Check if read was successful
-    cmp eax, 3                     ; Should have read 3 items
-    jne .read_loop
-    
-    ; Increment student count
-    inc dword [rel student_count]
-    jmp .read_loop
-    
-.close_file:
-    ; Close file
-    mov rdi, [rsp]
-    call _fclose
-    
-    ; Display success message
-    lea rdi, [rel file_load_msg]
-    call _printf
-    
-.done:
-    add rsp, 32                    ; Clean up stack
-    pop rbp
-    ret
-
-; Get student record by index
-; Parameters: rdi = index
-; Returns: rax = pointer to student record or 0 if invalid index
-_get_student_record:
-    ; Check if index is valid
-    cmp edi, [rel student_count]
-    jge .invalid_index
-    
-    ; Calculate record address
-    mov eax, edi
-    mov r9d, RECORD_SIZE
-    mul r9d                      ; eax = index * RECORD_SIZE
-    lea rax, [rel student_records + rax] ; rax = address of record
-    ret
-    
-.invalid_index:
-    xor eax, eax                 ; Return 0 for invalid index
     ret
 
 ; Get student count
-; Returns: eax = number of students
 _get_student_count:
     mov eax, [rel student_count]
     ret
 
-; Get maximum students
-; Returns: eax = maximum number of students
-_get_max_students:
-    mov eax, MAX_STUDENTS
+; Get student by index - simplified to return ID, then call other functions
+_get_student_record:
+    ; Check if index is valid
+    cmp edi, [rel student_count]
+    jge .invalid
+    
+    mov eax, edi    ; Just return the index for now
+    ret
+    
+.invalid:
+    mov eax, -1
+    ret
+
+; These are added functions to work with our simplified structure
+global _get_student_id, _get_student_name, _get_student_grade
+
+; Get ID for student at index
+_get_student_id:
+    ; Check if index is valid
+    cmp edi, [rel student_count]
+    jge .invalid
+    
+    ; Calculate address
+    lea r10, [rel student_ids]
+    mov eax, [r10 + rdi*4]
+    ret
+    
+.invalid:
+    mov eax, -1
+    ret
+
+; Get pointer to name for student at index
+_get_student_name:
+    ; Check if index is valid
+    cmp edi, [rel student_count]
+    jge .invalid
+    
+    ; Calculate name address
+    lea r10, [rel student_names]
+    mov rax, rdi
+    imul rax, 50
+    add rax, r10
+    ret
+    
+.invalid:
+    xor eax, eax
+    ret
+
+; Get grade for student at index
+_get_student_grade:
+    ; Check if index is valid
+    cmp edi, [rel student_count]
+    jge .invalid
+    
+    ; Calculate address
+    lea r10, [rel student_grades]
+    mov eax, [r10 + rdi*4]
+    ret
+    
+.invalid:
+    mov eax, -1
     ret

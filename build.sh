@@ -1,11 +1,13 @@
 #!/bin/bash
 
-#remove old build
+# Ensure obj directory exists
+mkdir -p obj
+
+# Remove old build files
 rm -f obj/*.o
 rm -f student_system
 
-
-# Build student system
+# Build student system with the most basic, macOS-compatible version
 nasm -f macho64 src/main.asm -o obj/main.o
 nasm -f macho64 src/records.asm -o obj/records.o
 nasm -f macho64 src/display.asm -o obj/display.o

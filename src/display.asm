@@ -6,24 +6,24 @@ section .data
     student_info_fmt db "ID: %d, Name: %s, Grade: %d", 10, 0
     footer_msg db "=====================", 10, 0
     
-    ; Constants
-    ID_OFFSET equ 0                  ; Offset of ID field in record
-    NAME_OFFSET equ 4                ; Offset of name field in record
-    GRADE_OFFSET equ 54              ; Offset of grade field in record
-    
 section .text
     global _view_students
     extern _printf
-    extern _get_student_count, _get_student_record
+    extern _get_student_count, _get_student_id, _get_student_name, _get_student_grade
     
 ; Display all students
 _view_students:
     push rbp
     mov rbp, rsp
-    push rbx                    ; Save rbx as we'll use it
+    push rbx                    ; Save non-volatile registers
+    push r12
+    push r13
+    push r14
+    push r15
     
     ; Display header
     lea rdi, [rel header_msg]
+    xor eax, eax
     call _printf
     
     ; Check if there are any students
@@ -35,37 +35,54 @@ _view_students:
     mov ebx, eax
     
     ; Loop through students
-    mov r12d, 0                 ; Initialize counter
+    xor r12d, r12d                 ; Initialize counter
 .display_loop:
-    cmp r12d, ebx               ; Check if we've displayed all students
+    cmp r12d, ebx                  ; Check if we've displayed all students
     jge .done
     
-    ; Get student record
+    ; Get student ID
     mov edi, r12d
-    call _get_student_record
-    mov r13, rax                ; r13 = pointer to student record
+    call _get_student_id
+    mov r13d, eax                  ; r13d = student ID
+    
+    ; Get student name pointer
+    mov edi, r12d
+    call _get_student_name
+    mov r14, rax                   ; r14 = pointer to student name
+    
+    ; Get student grade
+    mov edi, r12d
+    call _get_student_grade
+    mov r15d, eax                  ; r15d = student grade
     
     ; Display student info
     lea rdi, [rel student_info_fmt]
-    mov esi, [r13 + ID_OFFSET]      ; Load ID
-    lea rdx, [r13 + NAME_OFFSET]    ; Load name pointer
-    mov ecx, [r13 + GRADE_OFFSET]   ; Load grade
+    mov esi, r13d                  ; ID
+    mov rdx, r14                   ; Name pointer
+    mov ecx, r15d                  ; Grade
+    xor eax, eax
     call _printf
     
-    inc r12d                        ; Increment counter
+    inc r12d                       ; Increment counter
     jmp .display_loop
-    
-    jmp .done
     
 .no_students:
     lea rdi, [rel no_students_msg]
+    xor eax, eax
     call _printf
     
 .done:
     ; Display footer
     lea rdi, [rel footer_msg]
+    xor eax, eax
     call _printf
     
-    pop rbx                     ; Restore rbx
+    ; Restore registers
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    
     pop rbp
     ret
