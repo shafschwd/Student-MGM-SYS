@@ -11,16 +11,17 @@ section .bss
     
 section .text
     global _main
-    global _flush_input    ; Export flush_input
+    global _flush_input
     extern _printf, _scanf, _getchar
-    extern _add_student
-    extern _view_students  ; Add this external reference
-    extern _calculate_gpa     ; Add this external reference
-    extern _search_student     ; Add this external reference
+    extern _add_student, _view_students, _calculate_gpa, _search_student
+    extern _load_records, _save_records  ; Add these external references
 
 _main:
     push rbp
     mov rbp, rsp
+    
+    ; Load student records from file at startup
+    call _load_records
     
 main_loop:
     ; Display title and menu
@@ -66,18 +67,21 @@ menu_add_student:
     jmp main_loop
     
 menu_view_students:
-    call _view_students    ; Call our new view_students function
+    call _view_students
     jmp main_loop
     
 menu_calculate_gpa:
-    call _calculate_gpa    ; Call our calculate_gpa function
+    call _calculate_gpa
     jmp main_loop
     
 menu_search_student:
-    call _search_student    ; Call our search_student function
+    call _search_student
     jmp main_loop
     
 menu_exit:
+    ; Save records before exiting (optional, since we save after each add)
+    call _save_records
+    
     lea rdi, [rel exit_msg]
     call _printf
     
