@@ -21,7 +21,7 @@ section .data
     fmt_print db "Added student - ID: %d, Name: %s, Grade: %d", 10, 0
     
     ; File operations
-    file_path db "student_records.txt", 0  ; File to store student data
+    file_path db "../student_records.txt", 0  ; File to store student data
     file_mode_w db "w", 0                 ; Write mode
     file_mode_r db "r", 0                 ; Read mode
     file_write_fmt db "%d,%s,%d", 10, 0   ; Format for writing to file
