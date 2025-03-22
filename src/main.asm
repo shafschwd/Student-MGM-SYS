@@ -1,105 +1,115 @@
-; main.asm - Main entry point for Student Record Management System
+; main.asm - Main entry point with full menu functionality
+bits 64
+
 section .data
-    title_msg db "===== Student Record Management System =====", 10, 0
+    welcome_msg db "===== Student Record Management System =====", 10, 0
+    loading_msg db "Loading students...", 10, 0
     menu_msg db "1. Add Student", 10, "2. View Students", 10, "3. Calculate GPA", 10, "4. Search Student", 10, "5. Exit", 10, "Enter choice: ", 0
     invalid_msg db "Invalid choice. Please try again.", 10, 0
     exit_msg db "Exiting program. Goodbye!", 10, 0
     fmt_int db "%d", 0
     
 section .bss
-    choice resb 4
+    choice resd 1  ; 4 bytes for storing user's menu choice
     
 section .text
-    global _main
-    global _flush_input
-    extern _printf, _scanf, _getchar
-    extern _add_student, _view_students, _calculate_gpa, _search_student
+    global main
+    extern printf, scanf, exit
+    extern load_students_from_file
+    extern add_student, view_students, calculate_gpa, search_student
+    extern flush_input
     
-_main:
+main:
     push rbp
     mov rbp, rsp
     
-main_loop:
-    ; Display title and menu
-    lea rdi, [rel title_msg]
+    ; Display welcome message
+    lea rdi, [rel welcome_msg]
     xor eax, eax
-    call _printf
+    call printf
+    
+    ; Load students
+    lea rdi, [rel loading_msg]
+    xor eax, eax
+    call printf
+    
+    call load_students_from_file
+    
+main_loop:
+    ; Display menu
+    lea rdi, [rel welcome_msg]
+    xor eax, eax
+    call printf
     
     lea rdi, [rel menu_msg]
     xor eax, eax
-    call _printf
+    call printf
     
-    ; Read choice
+    ; Read user choice
     lea rdi, [rel fmt_int]
     lea rsi, [rel choice]
     xor eax, eax
-    call _scanf
+    call scanf
     
     ; Clear input buffer
-    call _flush_input
+    call flush_input
     
     ; Process choice
     mov eax, [rel choice]
     
+    ; Option 1: Add Student
     cmp eax, 1
-    je menu_add_student
+    je .add_student
     
+    ; Option 2: View Students
     cmp eax, 2
-    je menu_view_students
+    je .view_students
     
+    ; Option 3: Calculate GPA
     cmp eax, 3
-    je menu_calculate_gpa
+    je .calculate_gpa
     
+    ; Option 4: Search Student
     cmp eax, 4
-    je menu_search_student
+    je .search_student
     
+    ; Option 5: Exit
     cmp eax, 5
-    je menu_exit
+    je .exit
     
     ; Invalid choice
     lea rdi, [rel invalid_msg]
     xor eax, eax
-    call _printf
+    call printf
     jmp main_loop
     
-menu_add_student:
-    call _add_student
+.add_student:
+    call add_student
     jmp main_loop
     
-menu_view_students:
-    call _view_students
+.view_students:
+    call view_students
     jmp main_loop
     
-menu_calculate_gpa:
-    call _calculate_gpa
+.calculate_gpa:
+    call calculate_gpa
     jmp main_loop
     
-menu_search_student:
-    call _search_student
+.search_student:
+    call search_student
     jmp main_loop
     
-menu_exit:
+.exit:
+    ; Display exit message
     lea rdi, [rel exit_msg]
     xor eax, eax
-    call _printf
+    call printf
     
-    mov rax, 0
-    pop rbp
-    ret
-
-; Flush input buffer
-_flush_input:
-    push rbp
-    mov rbp, rsp
+    ; Exit with status code 0
+    xor edi, edi
+    call exit
     
-.loop:
-    call _getchar
-    cmp al, 10          ; Newline
-    je .done
-    cmp al, -1          ; EOF
-    je .done
-    jmp .loop
-    
-.done:
-    pop rbp
+    ; Should never reach here, but just in case
+    xor eax, eax
+    leave
     ret

@@ -1,4 +1,4 @@
-; input.asm - Input handling routines
+; input.asm - Input handling routines for Linux
 
 section .data
     scan_int_fmt db "%d", 0
@@ -6,21 +6,21 @@ section .data
     input_buffer_msg db "Input buffer cleared.", 10, 0
     
 section .text
-    global _read_int, _read_string, _clear_input_buffer
-    extern _scanf, _printf, _getchar
+    global read_int, read_string, clear_input_buffer, flush_input
+    extern scanf, printf, getchar
     
 ; Function to read an integer
 ; Parameters: none
 ; Returns: eax = integer read
-_read_int:
+read_int:
     push rbp
     mov rbp, rsp
     sub rsp, 16         ; Allocate space for local variable
     
-    lea rdi, [rel scan_int_fmt]
+    mov rdi, scan_int_fmt
     lea rsi, [rsp]      ; Store result on stack
     xor eax, eax
-    call _scanf
+    call scanf
     
     mov eax, [rsp]      ; Move result to eax
     
@@ -32,18 +32,18 @@ _read_int:
 ; Parameters:
 ;   rdi = buffer address
 ;   rsi = buffer size
-_read_string:
+read_string:
     push rbp
     mov rbp, rsp
     push rdi            ; Save buffer address
     push rsi            ; Save buffer size
     
-    lea rdi, [rel scan_str_fmt]
+    mov rdi, scan_str_fmt
     mov rsi, [rbp-8]    ; Get buffer address
     xor eax, eax
-    call _scanf
+    call scanf
     
-    call _clear_input_buffer
+    call flush_input
     
     pop rsi
     pop rdi
@@ -51,12 +51,12 @@ _read_string:
     ret
     
 ; Function to clear input buffer
-_clear_input_buffer:
+clear_input_buffer:
     push rbp
     mov rbp, rsp
     
 .loop:
-    call _getchar
+    call getchar
     cmp eax, 10         ; Check for newline
     je .done
     cmp eax, -1         ; Check for EOF
@@ -64,5 +64,13 @@ _clear_input_buffer:
     jmp .loop
     
 .done:
+    pop rbp
+    ret
+    
+; Alias for clear_input_buffer for compatibility
+flush_input:
+    push rbp
+    mov rbp, rsp
+    call clear_input_buffer
     pop rbp
     ret
