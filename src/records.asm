@@ -1,7 +1,9 @@
-; records_minimal.asm - Extremely minimal student record management for macOS
+; records.asm - Student record management for Linux
+bits 64
+
 section .data
     ; Constants
-    MAX_STUDENTS equ 10
+    MAX_STUDENTS equ 100    ; Maximum number of students we can store
     
     ; Prompts
     prompt_id db "Enter student ID: ", 0
@@ -15,165 +17,170 @@ section .data
     fmt_str db "%s", 0
     fmt_print db "Added student - ID: %d, Name: %s, Grade: %d", 10, 0
     
-    ; Student data (global variables)
-    global _student_count
-    _student_count: dd 0
+    ; Student record count
+    student_count dd 0
+    max_student_id dd 0    ; Tracking highest student ID
     
 section .bss
-    global _student_ids, _student_names, _student_grades
-    _student_ids: resd MAX_STUDENTS
-    _student_names: resb MAX_STUDENTS * 50
-    _student_grades: resd MAX_STUDENTS
+    ; Student record storage
+    student_ids resd MAX_STUDENTS    ; Array of student IDs
+    student_names resq MAX_STUDENTS  ; Array of pointers to student names
+    student_grades resd MAX_STUDENTS ; Array of student grades
     
-    ; Temporary variables
-    temp_id: resd 1
-    temp_name: resb 50
-    temp_grade: resd 1
+    ; Temporary variables for input
+    temp_id resd 1
+    temp_name resb 50
+    temp_grade resd 1
     
 section .text
-    global _add_student
-    extern _printf, _scanf, _flush_input
-    
+    global add_student
+    global get_student_count
+    global get_student_id
+    global get_student_name
+    global get_student_grade
+    global get_student_record
+    global add_student_record, set_max_student_id
+    extern printf, scanf, flush_input
+    extern malloc, free, strcpy
+    extern save_student_to_file     ; From file_io.asm
+
 ; Add student record
-_add_student:
+add_student:
     push rbp
     mov rbp, rsp
     
     ; Check if we've reached maximum students
-    mov eax, [rel _student_count]
+    mov eax, [student_count]
     cmp eax, MAX_STUDENTS
     jl .continue
     
     ; Maximum reached
-    lea rdi, [rel max_students_msg]
+    mov rdi, max_students_msg
     xor eax, eax
-    call _printf
+    call printf
     jmp .done
     
 .continue:
     ; Get student ID
-    lea rdi, [rel prompt_id]
+    mov rdi, prompt_id
     xor eax, eax
-    call _printf
+    call printf
     
-    lea rdi, [rel fmt_int]
-    lea rsi, [rel temp_id]
+    mov rdi, fmt_int
+    mov rsi, temp_id
     xor eax, eax
-    call _scanf
+    call scanf
     
-    call _flush_input
+    call flush_input
     
     ; Get student name
-    lea rdi, [rel prompt_name]
+    mov rdi, prompt_name
     xor eax, eax
-    call _printf
+    call printf
     
-    lea rdi, [rel fmt_str]
-    lea rsi, [rel temp_name]
+    mov rdi, fmt_str
+    mov rsi, temp_name
     xor eax, eax
-    call _scanf
+    call scanf
     
-    call _flush_input
+    call flush_input
     
     ; Get grade
-    lea rdi, [rel prompt_grade]
+    mov rdi, prompt_grade
     mov rsi, 1
     xor eax, eax
-    call _printf
+    call printf
     
-    lea rdi, [rel fmt_int]
-    lea rsi, [rel temp_grade]
+    mov rdi, fmt_int
+    mov rsi, temp_grade
     xor eax, eax
-    call _scanf
+    call scanf
     
-    call _flush_input
+    call flush_input
     
     ; Get current student index
-    mov r12d, [rel _student_count]
+    mov r12d, [student_count]
     
-    ; Store the ID
-    mov rax, r12                ; Current index 
-    mov rbx, 4                  ; Size of ID
-    mul rbx                     ; rax = index * 4
-    lea rdi, [rel _student_ids] ; Base address
-    add rdi, rax                ; Address to store ID
-    mov eax, [rel temp_id]      ; Load ID value
-    mov [rdi], eax              ; Store ID 
-    
-    ; Store the grade similarly
-    mov rax, r12                ; Current index 
-    mov rbx, 4                  ; Size of grade
-    mul rbx                     ; rax = index * 4
-    lea rdi, [rel _student_grades] ; Base address
-    add rdi, rax                ; Address to store grade
-    mov eax, [rel temp_grade]   ; Load grade value
-    mov [rdi], eax              ; Store grade
-    
-    ; Store the name (byte by byte)
-    mov rax, r12                ; Current index
-    mov rbx, 50                 ; Size of name
-    mul rbx                     ; rax = index * 50
-    lea rdi, [rel _student_names] ; Base address
-    add rdi, rax                ; Target address
-    lea rsi, [rel temp_name]    ; Source address
-    
-    ; Copy the name characters one by one
-    mov rcx, 0                  ; Counter
-.name_loop:
-    cmp rcx, 49                 ; Max length - 1
-    jge .end_name
-    
-    mov al, [rsi + rcx]         ; Get character
-    mov [rdi + rcx], al         ; Store character
-    
-    test al, al                 ; Check for null
-    jz .end_name
-    
+    ; Allocate memory for name
+    mov rcx, 0
+    mov rsi, temp_name
+.count_loop:
+    mov al, [rsi + rcx]
+    test al, al
+    jz .count_done
     inc rcx
-    jmp .name_loop
+    jmp .count_loop
+.count_done:
+    inc rcx             ; Include null terminator
     
-.end_name:
-    mov byte [rdi + rcx], 0     ; Ensure null termination
+    ; Allocate memory
+    mov rdi, rcx
+    call malloc
+    test rax, rax
+    jz .memory_error
+    
+    ; Store name pointer
+    mov [student_names + r12*8], rax
+    
+    ; Copy name
+    mov rdi, rax
+    mov rsi, temp_name
+    call strcpy
+    
+    ; Store ID and grade
+    mov eax, [temp_id]
+    mov [student_ids + r12*4], eax
+    
+    mov eax, [temp_grade]
+    mov [student_grades + r12*4], eax
     
     ; Increment student count
-    inc dword [rel _student_count]
+    inc dword [student_count]
     
     ; Display success
-    lea rdi, [rel success_msg]
+    mov rdi, success_msg
     xor eax, eax
-    call _printf
+    call printf
     
     ; Display added student info
-    lea rdi, [rel fmt_print]
-    mov esi, [rel temp_id]
-    lea rdx, [rel temp_name]
-    mov ecx, [rel temp_grade]
+    mov rdi, fmt_print
+    mov esi, [temp_id]
+    mov rdx, temp_name
+    mov ecx, [temp_grade]
     xor eax, eax
-    call _printf
+    call printf
+    
+    ; Save student to file
+    mov edi, [temp_id]
+    mov rsi, temp_name
+    mov edx, [temp_grade]
+    call save_student_to_file
+    
+    jmp .done
+    
+.memory_error:
+    ; Memory allocation failed
+    mov rdi, max_students_msg  ; Reuse this message
+    xor eax, eax
+    call printf
     
 .done:
     pop rbp
     ret
 
-; Get student count - needed by other files
-global _get_student_count
-_get_student_count:
-    mov eax, [rel _student_count]
+; Get student count
+get_student_count:
+    mov eax, [student_count]
     ret
 
 ; Get student ID at index
-global _get_student_id
-_get_student_id:
+get_student_id:
     ; Check if index is valid
-    cmp edi, [rel _student_count]
+    cmp edi, [student_count]
     jge .invalid
     
-    ; Calculate address
-    mov eax, edi                ; Index
-    mov ecx, 4                  ; Size of ID
-    mul ecx                     ; eax = index * 4
-    lea rcx, [rel _student_ids] ; Base address
-    mov eax, [rcx + rax]        ; Get ID
+    ; Get ID from array
+    mov eax, [student_ids + rdi*4]
     ret
     
 .invalid:
@@ -181,37 +188,27 @@ _get_student_id:
     ret
 
 ; Get student name at index
-global _get_student_name
-_get_student_name:
+get_student_name:
     ; Check if index is valid
-    cmp edi, [rel _student_count]
+    cmp edi, [student_count]
     jge .invalid
     
-    ; Calculate address
-    mov eax, edi                 ; Index
-    mov ecx, 50                  ; Size of name
-    mul ecx                      ; eax = index * 50
-    lea rcx, [rel _student_names] ; Base address
-    lea rax, [rcx + rax]         ; Get name address
+    ; Get name pointer from array
+    mov rax, [student_names + rdi*8]
     ret
     
 .invalid:
-    xor eax, eax
+    xor eax, eax  ; Return NULL
     ret
 
 ; Get student grade at index
-global _get_student_grade
-_get_student_grade:
+get_student_grade:
     ; Check if index is valid
-    cmp edi, [rel _student_count]
+    cmp edi, [student_count]
     jge .invalid
     
-    ; Calculate address
-    mov eax, edi                  ; Index
-    mov ecx, 4                    ; Size of grade
-    mul ecx                       ; eax = index * 4
-    lea rcx, [rel _student_grades] ; Base address
-    mov eax, [rcx + rax]           ; Get grade
+    ; Get grade from array
+    mov eax, [student_grades + rdi*4]
     ret
     
 .invalid:
@@ -219,7 +216,106 @@ _get_student_grade:
     ret
 
 ; This function exists for compatibility but just returns index
-global _get_student_record
-_get_student_record:
+get_student_record:
     mov eax, edi
+    ret
+
+; Add a student record - utility for file loading
+; Parameters:
+;   rdi = student ID
+;   rsi = student name (string)
+;   rdx = student grade
+add_student_record:
+    push rbp
+    mov rbp, rsp
+    
+    ; Save registers
+    push r12
+    push r13
+    push r14
+    push r15
+    
+    ; Save parameters
+    mov r12d, edi        ; ID
+    mov r13, rsi         ; Name pointer
+    mov r14d, edx        ; Grade
+    
+    ; Check if we have space
+    mov eax, [student_count]
+    cmp eax, MAX_STUDENTS
+    jge .done
+    
+    ; Get current student index
+    mov r15d, eax
+    
+    ; Count name length
+    mov rdi, r13
+    mov rcx, 0
+.name_length:
+    mov al, [rdi + rcx]
+    test al, al
+    jz .name_length_done
+    inc rcx
+    jmp .name_length
+.name_length_done:
+    inc rcx              ; Include null terminator
+    
+    ; Allocate memory for name
+    push r12
+    push r13
+    push r14
+    push r15
+    mov rdi, rcx
+    call malloc
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    
+    ; Check if malloc succeeded
+    test rax, rax
+    jz .done
+    
+    ; Store the allocated memory address
+    mov [student_names + r15*8], rax
+    
+    ; Copy the name
+    push r12
+    push r13
+    push r14
+    push r15
+    mov rdi, rax
+    mov rsi, r13
+    call strcpy
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    
+    ; Store ID and grade
+    mov [student_ids + r15*4], r12d
+    mov [student_grades + r15*4], r14d
+    
+    ; Increment student count
+    inc dword [student_count]
+    
+.done:
+    ; Restore registers
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    
+    pop rbp
+    ret
+
+; Update max student ID 
+; Parameters:
+;   rdi = new max ID
+set_max_student_id:
+    ; Only update if new ID is larger
+    cmp edi, [max_student_id]
+    jle .done
+    mov [max_student_id], edi
+.done:
     ret
