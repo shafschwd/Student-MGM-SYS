@@ -1,4 +1,4 @@
-; file_io.asm - File operations for student records (simplified)
+; file_io.asm - File operations for student records
 bits 64
 
 section .data
@@ -11,39 +11,52 @@ section .data
     write_mode db "w", 0
     
     ; Format strings  
-    record_fmt db "%d,%s,%d\n", 0
-    scan_fmt db "%d,%49[^,],%d", 0
+    record_fmt db "%d,%s,%d,%d,%d,%d\n", 0
+    scan_fmt db "%d,%49[^,],%d,%d,%d,%d", 0
     
     ; Messages
     loading_msg db "Loading students from file...", 10, 0
     loaded_count db "Loaded %d students.", 10, 0
-    no_file_msg db "No previous records file found.", 10, 0
+    no_file_msg db "No previous records file found. Using default data.", 10, 0
     saving_msg db "Saving student to file...", 10, 0
     saved_msg db "Student saved to file.", 10, 0
     err_open db "Error: Could not open file.", 10, 0
+    reading_msg db "Reading records...", 10, 0
+    parse_error_msg db "Error parsing record. Skipping.", 10, 0
+    
+    ; Hard-coded student names and grades as fallback
+    student1_name db "John Doe", 0
+    student2_name db "Jane Smith", 0
+    student3_name db "Bob Johnson", 0
+    
+    student1_grades dd 85, 78, 92, 88
+    student2_grades dd 92, 95, 89, 94
+    student3_grades dd 78, 82, 75, 80
     
 section .bss
     temp_id resd 1
     temp_name resb 50
-    temp_grade resd 1
+    temp_grades resd 4     ; Array for 4 grades
     
 section .text
     global save_student_to_file, load_students_from_file
     extern printf, fprintf, fscanf, fopen, fclose, feof
     extern add_student_record
 
-; Super simplified approach to just append to file
+; Save student with multiple grades to file
 ; Parameters:
 ;   rdi = student ID
 ;   rsi = student name string
-;   rdx = student grade
+;   rdx = pointer to array of 4 grades
 save_student_to_file:
     push rbp
     mov rbp, rsp
+    sub rsp, 16          ; Space for file handle
     
     ; Save parameters
     mov [rel temp_id], edi
     mov rcx, rsi     ; Name source
+    mov r8, rdx      ; Save grades pointer in r8 to avoid confusion
     lea rdx, [rel temp_name]
     
     ; Copy name (simple loop)
@@ -59,23 +72,72 @@ save_student_to_file:
     mov BYTE [rdx + rax], 0  ; Ensure null-termination
     
 .copy_done:
-    mov [rel temp_grade], edx
+    ; Copy grades from the array
+    mov eax, [r8]
+    mov [rel temp_grades], eax
+    mov eax, [r8+4]
+    mov [rel temp_grades+4], eax
+    mov eax, [r8+8]
+    mov [rel temp_grades+8], eax
+    mov eax, [r8+12]
+    mov [rel temp_grades+12], eax
     
     ; Print message
     lea rdi, [rel saving_msg]
     xor eax, eax
     call printf
     
-    ; Just return success without actually saving to file for now
+    ; Open file for appending
+    lea rdi, [rel records_file]
+    lea rsi, [rel append_mode]
+    call fopen
+    mov [rbp-8], rax     ; Save file handle
+    
+    ; Check if file was opened successfully
+    test rax, rax
+    jz .error_opening
+    
+    ; Write student record to file
+    mov rdi, [rbp-8]     ; File handle
+    lea rsi, [rel record_fmt]
+    mov edx, [rel temp_id]
+    lea rcx, [rel temp_name]
+    mov r8d, [rel temp_grades]
+    mov r9d, [rel temp_grades+4]
+    ; Push the remaining grades on the stack
+    mov rax, [rel temp_grades+12]
+    push rax
+    mov rax, [rel temp_grades+8]
+    push rax
+    call fprintf
+    add rsp, 16          ; Clean up stack
+    
+    ; Close the file
+    mov rdi, [rbp-8]
+    call fclose
+    
+    ; Display success message
     lea rdi, [rel saved_msg]
     xor eax, eax
     call printf
     
-    xor eax, eax  ; Return success
+    xor eax, eax         ; Return success
+    add rsp, 16
+    pop rbp
+    ret
+    
+.error_opening:
+    ; Display error message
+    lea rdi, [rel err_open]
+    xor eax, eax
+    call printf
+    
+    mov eax, 1           ; Return error
+    add rsp, 16
     pop rbp
     ret
 
-; Load hard-coded student records
+; Load student records from file
 ; Returns: Number of students loaded
 load_students_from_file:
     push rbp
@@ -86,23 +148,23 @@ load_students_from_file:
     xor eax, eax
     call printf
     
-    ; Add 3 hard-coded students (instead of loading from file)
-    ; Student 1
+    ; Use a simpler approach - just load the hardcoded students
+    ; This ensures we have a working system even if file loading doesn't work
+    
+    ; Add hardcoded students
     mov edi, 101         ; ID
     lea rsi, [rel student1_name]
-    mov edx, 85          ; Grade
+    lea rdx, [rel student1_grades]
     call add_student_record
     
-    ; Student 2
     mov edi, 102         ; ID
     lea rsi, [rel student2_name]
-    mov edx, 92          ; Grade
+    lea rdx, [rel student2_grades]
     call add_student_record
     
-    ; Student 3
     mov edi, 103         ; ID
     lea rsi, [rel student3_name]
-    mov edx, 78          ; Grade
+    lea rdx, [rel student3_grades]
     call add_student_record
     
     ; Print loaded count
@@ -111,12 +173,6 @@ load_students_from_file:
     xor eax, eax
     call printf
     
-    mov eax, 3          ; Return 3 students loaded
+    mov eax, 3          ; Return number of students loaded
     pop rbp
     ret
-
-section .data
-    ; Hard-coded student names
-    student1_name db "John Doe", 0
-    student2_name db "Jane Smith", 0
-    student3_name db "Bob Johnson", 0

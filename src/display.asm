@@ -1,4 +1,4 @@
-; display.asm - Show multiple students safely
+; display.asm - Show multiple students with their grades (simplified version)
 bits 64    ; Explicitly set 64-bit mode
 
 section .data
@@ -6,10 +6,16 @@ section .data
     header_msg db "===== Student List =====", 10, 0
     no_students_msg db "No students in the database.", 10, 0
     count_msg db "Total students: %d", 10, 0
-    student_info_fmt db "Student #%d - ID: %d, Name: %s, Grade: %d", 10, 0
+    student_info_fmt db "Student #%d - ID: %d, Name: %s", 10, 0
+    
+    ; Individual grade format strings for maximum simplicity
+    math_fmt db "  Math: %d", 10, 0
+    science_fmt db "  Science: %d", 10, 0
+    english_fmt db "  English: %d", 10, 0
+    history_fmt db "  History: %d", 10, 0
+    
     footer_msg db "=====================", 10, 0
     null_str db "(null)", 0
-    valid_fmt db "Valid students: %d", 10, 0
     
 section .text
     global view_students
@@ -19,17 +25,10 @@ section .text
     extern get_student_name
     extern get_student_grade
     
-; Clean version - only show valid students
+; Ultra simplified student display - show each student with 4 grades
 view_students:
-    ; Standard prologue
     push rbp
     mov rbp, rsp
-    
-    ; Save callee-saved registers
-    push r12
-    push r13
-    push r14
-    push r15
     
     ; Display header
     lea rdi, [rel header_msg]
@@ -38,60 +37,25 @@ view_students:
     
     ; Get student count
     call get_student_count
-    mov r12d, eax        ; Save student count in r12d
     
-    ; Display total count
+    ; Display count
     lea rdi, [rel count_msg]
-    mov esi, r12d
+    mov esi, eax
     xor eax, eax
     call printf
+    
+    ; Save student count
+    mov r12d, eax
     
     ; Check if we have any students
     test r12d, r12d
     jz .no_students
     
-    ; First pass: count valid students (ID >= 0)
-    xor r13d, r13d       ; Initialize valid student counter to 0
-    xor r14d, r14d       ; Initialize index counter to 0
-    
-.count_valid_loop:
-    ; Check if we've checked all students
-    cmp r14d, r12d
-    jge .count_valid_done
-    
-    ; Get student ID
-    mov edi, r14d
-    call get_student_id
-    
-    ; Check if student is valid (ID >= 0)
-    cmp eax, 0
-    jl .skip_invalid
-    
-    ; Valid student found, increment counter
-    inc r13d
-    
-.skip_invalid:
-    ; Move to next student
-    inc r14d
-    jmp .count_valid_loop
-    
-.count_valid_done:
-    ; Display valid student count
-    lea rdi, [rel valid_fmt]
-    mov esi, r13d
-    xor eax, eax
-    call printf
-    
-    ; Check if we have any valid students
-    test r13d, r13d
-    jz .no_students
-    
-    ; Second pass: display valid students
-    xor r14d, r14d       ; Reset index counter to 0
-    xor r15d, r15d       ; Reset valid student index (for display numbering)
+    ; Loop through all students
+    xor r14d, r14d       ; Student index counter
     
 .display_loop:
-    ; Check if we've checked all students
+    ; Check if we've processed all students
     cmp r14d, r12d
     jge .display_done
     
@@ -99,61 +63,89 @@ view_students:
     mov edi, r14d
     call get_student_id
     
-    ; Check if student is valid (ID >= 0)
+    ; Skip if ID is negative
     cmp eax, 0
     jl .next_student
     
-    ; Save ID for display
-    mov ebx, eax
+    ; Save ID
+    mov r15d, eax
     
     ; Get student name
     mov edi, r14d
     call get_student_name
     
-    ; Save pointer and check if NULL
-    mov r13, rax
-    test r13, r13
+    ; Check if name is valid
+    mov rbx, rax
+    test rbx, rbx
     jnz .name_valid
-    lea r13, [rel null_str]
+    lea rbx, [rel null_str]
     
 .name_valid:
-    ; Get student grade
-    mov edi, r14d
-    call get_student_grade
-    
-    ; Print student info (only for valid students)
+    ; Display basic student info
     lea rdi, [rel student_info_fmt]
-    lea esi, [r15d+1]    ; Student number (1-based)
-    mov edx, ebx         ; Student ID
-    mov rcx, r13         ; Student name
-    mov r8d, eax         ; Student grade
+    lea esi, [r14d+1]    ; 1-based display
+    mov edx, r15d        ; ID
+    mov rcx, rbx         ; Name
     xor eax, eax
     call printf
     
-    ; Increment valid student counter
-    inc r15d
+    ; Display Math grade (subject 0)
+    mov edi, r14d
+    xor esi, esi        ; Subject 0
+    call get_student_grade
+    push rax            ; Save grade
+    
+    lea rdi, [rel math_fmt]
+    pop rsi             ; Get grade as parameter
+    xor eax, eax
+    call printf
+    
+    ; Display Science grade (subject 1)
+    mov edi, r14d
+    mov esi, 1          ; Subject 1
+    call get_student_grade
+    push rax            ; Save grade
+    
+    lea rdi, [rel science_fmt]
+    pop rsi             ; Get grade as parameter
+    xor eax, eax
+    call printf
+    
+    ; Display English grade (subject 2)
+    mov edi, r14d
+    mov esi, 2          ; Subject 2
+    call get_student_grade
+    push rax            ; Save grade
+    
+    lea rdi, [rel english_fmt]
+    pop rsi             ; Get grade as parameter
+    xor eax, eax
+    call printf
+    
+    ; Display History grade (subject 3)
+    mov edi, r14d
+    mov esi, 3          ; Subject 3
+    call get_student_grade
+    push rax            ; Save grade
+    
+    lea rdi, [rel history_fmt]
+    pop rsi             ; Get grade as parameter
+    xor eax, eax
+    call printf
     
 .next_student:
-    ; Move to next student
     inc r14d
     jmp .display_loop
     
 .no_students:
-    ; Display no students message
     lea rdi, [rel no_students_msg]
     xor eax, eax
     call printf
     
 .display_done:
-    ; Display footer
     lea rdi, [rel footer_msg]
     xor eax, eax
     call printf
     
-    ; Restore callee-saved registers
-    pop r15
-    pop r14
-    pop r13
-    pop r12
     pop rbp
     ret

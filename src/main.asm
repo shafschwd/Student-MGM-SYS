@@ -2,9 +2,9 @@
 bits 64
 
 section .data
-    welcome_msg db "===== Student Record Management System =====", 10, 0
+    welcome_msg db "===== Student Grade Management System =====", 10, 0
     loading_msg db "Loading students...", 10, 0
-    menu_msg db "1. Add Student", 10, "2. View Students", 10, "3. Calculate GPA", 10, "4. Search Student", 10, "5. Exit", 10, "Enter choice: ", 0
+    menu_msg db "1. Add Student", 10, "2. View Students", 10, "3. Calculate GPA (Average of 4 Subjects)", 10, "4. Search Student", 10, "5. Exit", 10, "Enter choice: ", 0
     invalid_msg db "Invalid choice. Please try again.", 10, 0
     exit_msg db "Exiting program. Goodbye!", 10, 0
     fmt_int db "%d", 0
