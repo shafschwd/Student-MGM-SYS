@@ -1,4 +1,5 @@
 ; input.asm - Input handling routines for Linux
+bits 64
 
 section .data
     scan_int_fmt db "%d", 0
@@ -67,10 +68,26 @@ clear_input_buffer:
     pop rbp
     ret
     
-; Alias for clear_input_buffer for compatibility
+; Clear the input buffer (especially after scanf)
 flush_input:
     push rbp
     mov rbp, rsp
-    call clear_input_buffer
+    sub rsp, 8       ; Align stack
+    
+.read_loop:
+    ; Call getchar() to read a character
+    call getchar
+    
+    ; Check if EOF or newline
+    cmp eax, -1      ; EOF
+    je .done
+    cmp eax, 10      ; Newline
+    je .done
+    
+    ; Keep reading
+    jmp .read_loop
+    
+.done:
+    add rsp, 8
     pop rbp
     ret

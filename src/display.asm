@@ -89,6 +89,13 @@ view_students:
     xor eax, eax
     call printf
     
+    ; Add a comment here to indicate the correct order for subject display
+    ; The grades should be displayed in this order:
+    ;   Math (index 0)
+    ;   Science (index 1)
+    ;   English (index 2)
+    ;   History (index 3)
+    
     ; Display Math grade (subject 0)
     mov edi, r14d
     xor esi, esi        ; Subject 0

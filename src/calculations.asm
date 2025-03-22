@@ -1,122 +1,98 @@
-; calculations.asm - GPA calculations
+; calculations.asm - Math functions for student data processing
+bits 64
+
 section .data
-    ; Messages
-    gpa_header db "===== GPA Calculation =====", 10, 0
-    no_students_msg db "No students in the database.", 10, 0
-    gpa_prompt db "Enter student ID for GPA calculation: ", 0
-    gpa_result_msg db "Student ID: %d, Name: %s", 10, "Grade: %d, GPA: %.2f", 10, 0
-    student_not_found db "Student with ID %d not found.", 10, 0
+    ; Prompts and messages
+    gpa_prompt db "Enter student ID to calculate GPA: ", 0
+    gpa_result db "Student %d (%s) GPA: %d", 10, 0
+    not_found_msg db "Student with ID %d not found.", 10, 0
     
-    ; For GPA calculation
-    divisor dd 20.0       ; Divisor for GPA calculation
+    ; Format for reading input
     fmt_int db "%d", 0
-    
+
 section .bss
-    search_id resd 1      ; Buffer for search ID
-    
+    student_id resd 1   ; For storing input student ID
+
 section .text
-    global _calculate_gpa
-    extern _printf, _scanf, _flush_input
-    extern _get_student_count, _get_student_id, _get_student_name, _get_student_grade
-    
-; Calculate GPA for a specific student
-_calculate_gpa:
+    global calculate_gpa
+    extern printf, scanf, flush_input
+    extern get_student_count, get_student_id, get_student_name
+    extern calculate_student_avg
+
+; Calculate and display GPA (average of all grades) for a student
+calculate_gpa:
     push rbp
     mov rbp, rsp
-    push rbx                    ; Save non-volatile registers
-    push r12
-    push r13
-    push r14
-    push r15
     
-    ; Display header
-    lea rdi, [rel gpa_header]
-    xor eax, eax
-    call _printf
-    
-    ; Check if there are any students
-    call _get_student_count
-    test eax, eax
-    jz .no_students
-    
-    ; Save student count
-    mov ebx, eax
-    
-    ; Prompt for ID
+    ; Prompt for student ID
     lea rdi, [rel gpa_prompt]
     xor eax, eax
-    call _printf
+    call printf
     
-    ; Read ID
+    ; Read student ID
     lea rdi, [rel fmt_int]
-    lea rsi, [rel search_id]
+    lea rsi, [rel student_id]
     xor eax, eax
-    call _scanf
+    call scanf
     
-    call _flush_input
+    call flush_input
     
-    ; Search through all students
-    xor r12d, r12d               ; Initialize counter
+    ; Find student with this ID
+    mov r12d, [rel student_id]  ; Student ID to find
+    
+    ; Get total number of students
+    call get_student_count
+    mov r13d, eax               ; Total student count
+    
+    ; Loop through students to find the one with the requested ID
+    xor r14d, r14d              ; Student index
+    
 .search_loop:
-    cmp r12d, ebx                ; Check if we've searched all students
+    ; Check if we've checked all students
+    cmp r14d, r13d
     jge .not_found
     
-    ; Get current student ID
-    mov edi, r12d
-    call _get_student_id
+    ; Get ID of current student
+    mov edi, r14d
+    call get_student_id
     
-    ; Compare with search ID
-    cmp eax, [rel search_id]
+    ; Compare with the ID we're looking for
+    cmp eax, r12d
     je .found
     
-    inc r12d                     ; Increment counter
+    ; Check next student
+    inc r14d
     jmp .search_loop
     
 .found:
-    ; Get student name and grade
-    mov edi, r12d
-    call _get_student_name
-    mov r14, rax                 ; r14 = pointer to student name
+    ; Found the student, get name
+    mov edi, r14d
+    call get_student_name
     
-    mov edi, r12d
-    call _get_student_grade
-    mov r15d, eax                ; r15d = student grade
+    ; Save the student name pointer
+    mov rbx, rax
     
-    ; Calculate GPA
-    cvtsi2ss xmm0, r15d          ; Convert grade to float
-    movss xmm1, [rel divisor]
-    divss xmm0, xmm1             ; Divide by 20 to get GPA
+    ; Calculate average grade (GPA)
+    mov edi, r14d
+    call calculate_student_avg
     
-    ; Display result
-    lea rdi, [rel gpa_result_msg]
-    mov esi, [rel search_id]     ; ID
-    mov rdx, r14                 ; Name pointer
-    mov ecx, r15d                ; Grade
-    cvtss2sd xmm0, xmm0          ; Convert to double for printf
-    mov al, 1                    ; 1 floating point argument
-    call _printf
-    jmp .done
+    ; Display the GPA
+    lea rdi, [rel gpa_result]
+    mov esi, r12d        ; Student ID
+    mov rdx, rbx         ; Student name
+    mov ecx, eax         ; Average grade (GPA)
+    xor eax, eax
+    call printf
+    
+    pop rbp
+    ret
     
 .not_found:
-    ; Not found
-    lea rdi, [rel student_not_found]
-    mov esi, [rel search_id]
+    ; Student not found, display error
+    lea rdi, [rel not_found_msg]
+    mov esi, r12d        ; Student ID
     xor eax, eax
-    call _printf
-    jmp .done
-    
-.no_students:
-    lea rdi, [rel no_students_msg]
-    xor eax, eax
-    call _printf
-    
-.done:
-    ; Restore registers
-    pop r15
-    pop r14
-    pop r13
-    pop r12
-    pop rbx
+    call printf
     
     pop rbp
     ret

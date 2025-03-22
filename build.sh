@@ -1,45 +1,44 @@
 #!/bin/bash
 
-# Ensure obj directory exists
+echo "Starting the build process..."
+
+# Create obj directory if it doesn't exist
 mkdir -p obj
 
-# Remove old build files
-rm -f obj/*.o
-rm -f student_system
-
-# Build student system for Linux
+# Compile assembly files
 echo "Assembling main.asm..."
-nasm -f elf64 src/main.asm -o obj/main.o
+nasm -f elf64 -o obj/main.o src/main.asm
 
 echo "Assembling records.asm..."
-nasm -f elf64 src/records.asm -o obj/records.o
+nasm -f elf64 -o obj/records.o src/records.asm
 
 echo "Assembling file_io.asm..."
-nasm -f elf64 src/file_io.asm -o obj/file_io.o
+nasm -f elf64 -o obj/file_io.o src/file_io.asm
 
 echo "Assembling display.asm..."
-nasm -f elf64 src/display.asm -o obj/display.o
+nasm -f elf64 -o obj/display.o src/display.asm
 
 echo "Assembling search.asm..."
-nasm -f elf64 src/search.asm -o obj/search.o
+nasm -f elf64 -o obj/search.o src/search.asm
 
 echo "Assembling calculations.asm..."
-nasm -f elf64 src/calculations.asm -o obj/calculations.o
+nasm -f elf64 -o obj/calculations.o src/calculations.asm
 
 echo "Assembling input.asm..."
-nasm -f elf64 src/input.asm -o obj/input.o
+nasm -f elf64 -o obj/input.o src/input.asm
 
-if [ $? -ne 0 ]; then
-    echo "Assembly failed. Please check errors above."
-    exit 1
+# Assemble debug.asm if it exists and is not empty
+if [ -s src/debug.asm ]; then
+    echo "Assembling debug.asm..."
+    nasm -f elf64 -o obj/debug.o src/debug.asm
 fi
 
+# Link object files
 echo "Linking..."
-gcc -o student_system obj/main.o obj/records.o obj/file_io.o obj/display.o obj/search.o obj/calculations.o obj/input.o -no-pie
-
-if [ $? -ne 0 ]; then
+if gcc -no-pie -o student_system obj/*.o -lc; then
+    echo "Build complete. Run with ./student_system"
+    exit 0
+else
     echo "Linking failed. Please check errors above."
     exit 1
 fi
-
-echo "Build complete. Run with ./student_system"

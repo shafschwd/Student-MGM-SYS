@@ -1,3 +1,5 @@
-101,John Doe,85
-102,Jane Smith,92
-103,Bob Johnson,78
+101,John Doe,85,78,92,88
+102,Jane Smith,92,95,89,94
+103,Bob Johnson,78,82,75,80
+104,shafs,34,56,24,56
+105,cy,89,84,35,56

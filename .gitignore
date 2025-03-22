@@ -3,3 +3,4 @@ src/.DS_Store
 obj/*.o
 student_system
 .vscode
+sample_records.txt
