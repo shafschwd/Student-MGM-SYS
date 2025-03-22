@@ -4,7 +4,7 @@ bits 64
 section .data
     ; Prompts and messages
     gpa_prompt db "Enter student ID to calculate GPA: ", 0
-    gpa_result db "Student %d (%s) GPA: %d", 10, 0
+    gpa_result db "Student %d (%s) GPA: %d.%d", 10, 0
     not_found_msg db "Student with ID %d not found.", 10, 0
     
     ; Format for reading input
@@ -72,15 +72,21 @@ calculate_gpa:
     ; Save the student name pointer
     mov rbx, rax
     
-    ; Calculate average grade (GPA)
+    ; Calculate average grade (GPA) - now returns GPA × 10
     mov edi, r14d
     call calculate_student_avg
     
-    ; Display the GPA
+    ; Split into whole number and decimal
+    mov ecx, 10
+    cdq                  ; Sign extend eax into edx:eax
+    idiv ecx             ; eax = whole number, edx = decimal
+    
+    ; Display the GPA with decimal point
     lea rdi, [rel gpa_result]
     mov esi, r12d        ; Student ID
     mov rdx, rbx         ; Student name
-    mov ecx, eax         ; Average grade (GPA)
+    mov ecx, eax         ; Whole number part
+    mov r8d, edx         ; Decimal part
     xor eax, eax
     call printf
     

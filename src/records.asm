@@ -545,11 +545,11 @@ get_student_grades:
     xor eax, eax  ; Return NULL
     ret
 
-; Calculate average grade for a student
+; Calculate average grade for a student on a 4.0 GPA scale
 ; Parameters:
 ;   rdi = student index
 ; Returns:
-;   eax = average grade or -1 if invalid
+;   eax = GPA on 4.0 scale (multiplied by 10 for one decimal place)
 calculate_student_avg:
     push rbp
     mov rbp, rsp
@@ -586,10 +586,24 @@ calculate_student_avg:
 .sum_done:
     ; Calculate average (sum / NUM_SUBJECTS)
     mov eax, r13d
-    xor edx, edx
+    cdq                  ; Sign extend eax into edx:eax
     mov ecx, NUM_SUBJECTS
-    div ecx
+    idiv ecx             ; eax = (edx:eax) / ecx
     
+    ; Convert to 4.0 scale (with one decimal place)
+    ; GPA = (grade / 100) * 4.0
+    ; To keep one decimal place, we multiply by 40 instead of 4
+    imul eax, 40         ; eax = avg * 40
+    mov ecx, 100
+    cdq                  ; Sign extend eax into edx:eax
+    idiv ecx             ; eax = (edx:eax) / 100
+    
+    ; Cap at 40 (4.0)
+    cmp eax, 40
+    jle .done
+    mov eax, 40          ; Maximum is 4.0
+    
+.done:
     pop rbp
     ret
     
